@@ -61,6 +61,7 @@ const HERMES_API_KEY = process.env.HERMES_API_KEY || "";
 const ADAPTER_PORT = parseInt(process.env.HERMES_ADAPTER_PORT || "18789", 10);
 const HERMES_MODEL = process.env.HERMES_MODEL || "hermes";
 const HERMES_AGENT_NAME = process.env.HERMES_AGENT_NAME || "Hermes";
+const ADAPTER_TOKEN = process.env.HERMES_ADAPTER_TOKEN || "";
 const HOME = process.env.HOME || "/tmp";
 
 const AGENT_ID = "hermes";
@@ -1212,6 +1213,14 @@ function startAdapter() {
       if (typeof id !== "string" || typeof method !== "string") return;
 
       if (method === "connect") {
+        if (ADAPTER_TOKEN) {
+          const suppliedToken = params && params.auth && typeof params.auth.token === "string" ? params.auth.token : "";
+          if (suppliedToken !== ADAPTER_TOKEN) {
+            send(resErr(id, "unauthorized", "Invalid or missing gateway token."));
+            ws.close(4001, "unauthorized");
+            return;
+          }
+        }
         connected = true;
         const allAgents = [...agentRegistry.values()].map((a) => ({ agentId: a.id, name: a.name, isDefault: a.id === AGENT_ID }));
         send({
@@ -1257,7 +1266,7 @@ function startAdapter() {
     });
   });
 
-  httpServer.listen(ADAPTER_PORT, "127.0.0.1", () => {
+  httpServer.listen(ADAPTER_PORT, process.env.HERMES_ADAPTER_HOST || "127.0.0.1", () => {
     console.log(`\n[hermes-adapter] ✓ Listening on ws://localhost:${ADAPTER_PORT}`);
     console.log(`[hermes-adapter] ✓ Forwarding to Hermes API at ${HERMES_API_URL}`);
     console.log(`[hermes-adapter] ✓ Model: ${HERMES_MODEL}`);
